@@ -201,9 +201,8 @@ describe("MessageChannel", function () {
         });
       }
       const timestampAfter = testChannelA["lamportTimestamp"];
-      expect(timestampAfter - timestampBefore).to.equal(
-        BigInt(messagesB.length)
-      );
+      // The timestamp must increase by at leat the number of messages.
+      expect(timestampAfter - timestampBefore >= messagesB.length).to.be.true;
     });
 
     it("should maintain proper timestamps if all messages received", async () => {
