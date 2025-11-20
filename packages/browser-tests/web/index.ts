@@ -15,8 +15,6 @@ import {
   CreateLibp2pOptions,
   IEncoder,
   ILightPush,
-  SDKProtocolResult,
-  Failure,
 } from "@waku/interfaces";
 import { bootstrap } from "@libp2p/bootstrap";
 import { EnrDecoder, TransportProtocol } from "@waku/enr";
@@ -36,12 +34,12 @@ export interface SerializableSDKProtocolResult {
   myPeerId?: string;
 }
 
-function makeSerializable(result: SDKProtocolResult): SerializableSDKProtocolResult {
+function makeSerializable(result: { successes: PeerId[], failures: Array<{ error: any, peerId?: PeerId }> }): SerializableSDKProtocolResult {
   return {
     ...result,
     successes: result.successes.map((peerId: PeerId) => peerId.toString()),
-    failures: result.failures.map((failure: Failure) => ({
-      error: failure.error || failure.toString(),
+    failures: result.failures.map((failure) => ({
+      error: String(failure.error),
       peerId: failure.peerId ? failure.peerId.toString() : undefined,
     })),
   };
@@ -158,7 +156,7 @@ export class WakuHeadless {
     lightPush: ILightPush,
     encoder: IEncoder,
     payload: Uint8Array,
-  ): Promise<SDKProtocolResult> {
+  ) {
     return lightPush.send(encoder, {
       payload,
       timestamp: new Date(),
