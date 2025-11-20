@@ -101,14 +101,11 @@ export class PersistentHistory implements ILocalHistory {
     if (!this.storage) {
       return;
     }
-    try {
-      const payload = JSON.stringify(
-        this.memory.slice(0).map(serializeContentMessage)
-      );
-      this.storage.setItem(this.storageKey, payload);
-    } catch {
-      // Ignore persistence errors (e.g. quota exceeded).
-    }
+
+    const payload = JSON.stringify(
+      this.memory.slice(0).map(serializeContentMessage)
+    );
+    this.storage.setItem(this.storageKey, payload);
   }
 
   private load(): void {
@@ -130,11 +127,7 @@ export class PersistentHistory implements ILocalHistory {
         this.memory.push(...messages);
       }
     } catch {
-      try {
-        this.storage.removeItem(this.storageKey);
-      } catch {
-        // Ignore cleanup errors.
-      }
+      this.storage.removeItem(this.storageKey);
     }
   }
 }
