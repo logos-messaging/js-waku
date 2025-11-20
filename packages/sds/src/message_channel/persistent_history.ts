@@ -12,7 +12,6 @@ export interface HistoryStorage {
 export interface PersistentHistoryOptions {
   channelId: ChannelId;
   storage?: HistoryStorage;
-  storageKeyPrefix?: string;
 }
 
 type StoredHistoryEntry = {
@@ -45,8 +44,8 @@ export class PersistentHistory implements ILocalHistory {
 
   public constructor(options: PersistentHistoryOptions) {
     this.memory = new MemLocalHistory();
-    this.storage = options.storage ?? getDefaultHistoryStorage();
-    this.storageKey = `${HISTORY_STORAGE_PREFIX}${options.storageKeyPrefix}:${options.channelId}`;
+    this.storage = options.storage || localStorage;
+    this.storageKey = `${HISTORY_STORAGE_PREFIX}${options.channelId}`;
     this.load();
   }
 
@@ -131,21 +130,6 @@ export class PersistentHistory implements ILocalHistory {
     }
   }
 }
-
-export const getDefaultHistoryStorage = (): HistoryStorage | undefined => {
-  try {
-    if (typeof localStorage === "undefined") {
-      return undefined;
-    }
-
-    const probeKey = `${HISTORY_STORAGE_PREFIX}__probe__`;
-    localStorage.setItem(probeKey, probeKey);
-    localStorage.removeItem(probeKey);
-    return localStorage;
-  } catch {
-    return undefined;
-  }
-};
 
 const serializeHistoryEntry = (entry: HistoryEntry): StoredHistoryEntry => ({
   messageId: entry.messageId,
