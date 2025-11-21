@@ -50,6 +50,15 @@ const IRRECOVERABLE_SENDING_ERRORS: LightPushError[] = [
   LightPushError.RLN_PROOF_GENERATION
 ];
 
+/**
+ * Strategy for retrieving missing messages.
+ * - 'both': Use SDS-R peer repair and Store queries in parallel (default)
+ * - 'sds-r-only': Only use SDS-R peer repair
+ * - 'store-only': Only use Store queries (legacy behavior)
+ * - 'none': No automatic retrieval
+ */
+export type RetrievalStrategy = "both" | "sds-r-only" | "store-only" | "none";
+
 export type ReliableChannelOptions = MessageChannelOptions & {
   /**
    * The minimum interval between 2 sync messages in the channel.
@@ -117,14 +126,10 @@ export type ReliableChannelOptions = MessageChannelOptions & {
 
   /**
    * Strategy for retrieving missing messages.
-   * - 'both': Use SDS-R peer repair and Store queries in parallel (default)
-   * - 'sds-r-only': Only use SDS-R peer repair
-   * - 'store-only': Only use Store queries (legacy behavior)
-   * - 'none': No automatic retrieval
    *
    * @default 'both'
    */
-  retrievalStrategy?: "both" | "sds-r-only" | "store-only" | "none";
+  retrievalStrategy?: RetrievalStrategy;
 };
 
 /**
@@ -165,11 +170,6 @@ export class ReliableChannel<
   private readonly missingMessageRetriever?: MissingMessageRetriever<T>;
   private readonly queryOnConnect?: QueryOnConnect<T>;
   private readonly processTaskMinElapseMs: number;
-  private readonly retrievalStrategy:
-    | "both"
-    | "sds-r-only"
-    | "store-only"
-    | "none";
   private _started: boolean;
 
   private constructor(
@@ -177,6 +177,7 @@ export class ReliableChannel<
     public messageChannel: MessageChannel,
     private encoder: IEncoder,
     private decoder: IDecoder<T>,
+    private retrievalStrategy: RetrievalStrategy,
     options?: ReliableChannelOptions
   ) {
     super();
@@ -233,8 +234,6 @@ export class ReliableChannel<
 
     this.processTaskMinElapseMs =
       options?.processTaskMinElapseMs ?? DEFAULT_PROCESS_TASK_MIN_ELAPSE_MS;
-
-    this.retrievalStrategy = options?.retrievalStrategy ?? "both";
 
     // Only enable Store retrieval based on strategy
     if (this._retrieve && this.shouldUseStore()) {
@@ -306,6 +305,7 @@ export class ReliableChannel<
       sdsMessageChannel,
       encoder,
       decoder,
+      retrievalStrategy,
       options
     );
 
@@ -569,9 +569,9 @@ export class ReliableChannel<
 
   private stopRepairSweepLoop(): void {
     if (this.sweepRepairInterval) {
-         clearInterval(this.sweepRepairInterval);
-         this.sweepInBufInterval = undefined;
-   }
+      clearInterval(this.sweepRepairInterval);
+      this.sweepInBufInterval = undefined;
+    }
   }
 
   private shouldUseStore(): boolean {
