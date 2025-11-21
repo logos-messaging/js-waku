@@ -10,6 +10,7 @@ import {
 import { delay } from "@waku/utils";
 import { utf8ToBytes } from "@waku/utils/bytes";
 import { expect } from "chai";
+import { afterEach } from "mocha";
 import sinon from "sinon";
 
 import {
@@ -91,6 +92,10 @@ describe("QueryOnConnect", () => {
     };
   });
 
+  afterEach(() => {
+    sinon.restore();
+  });
+
   describe("constructor", () => {
     it("should create QueryOnConnect instance with all required parameters", () => {
       queryOnConnect = new QueryOnConnect(
@@ -158,14 +163,14 @@ describe("QueryOnConnect", () => {
       expect(wakuEventSpy.calledWith(WakuEvent.Health)).to.be.true;
     });
 
-    it("should remove event listeners when stopped", () => {
+    it("should remove event listeners when stopped", async () => {
       const peerRemoveSpy =
         mockPeerManagerEventEmitter.removeEventListener as sinon.SinonSpy;
       const wakuRemoveSpy =
         mockWakuEventEmitter.removeEventListener as sinon.SinonSpy;
 
       queryOnConnect.start();
-      queryOnConnect.stop();
+      await queryOnConnect.stop();
 
       expect(peerRemoveSpy.calledWith(PeerManagerEventNames.StoreConnect)).to.be
         .true;
@@ -337,6 +342,7 @@ describe("QueryOnConnect", () => {
     });
 
     afterEach(() => {
+      sinon.restore();
       mockClock.restore();
     });
 
