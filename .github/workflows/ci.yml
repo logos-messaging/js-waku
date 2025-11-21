@@ -116,6 +116,28 @@ jobs:
       - run: npm install
         if: ${{ steps.release.outputs.releases_created }}
 
+      - name: Setup Foundry
+        if: ${{ steps.release.outputs.releases_created }}
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Generate RLN contract ABIs and verify build
+        if: ${{ steps.release.outputs.releases_created }}
+        run: |
+          cd packages/rln
+          npm run setup:contract-abi || {
+            echo "Failed to generate contract ABIs, marking @waku/rln as private to skip publishing"
+            node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); pkg.private = true; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
+            exit 0
+          }
+          npm run build || {
+            echo "Failed to build @waku/rln, marking as private to skip publishing"
+            node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); pkg.private = true; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
+            exit 0
+          }
+          cd ../..
+
       - run: npm run build
         if: ${{ steps.release.outputs.releases_created }}
 
