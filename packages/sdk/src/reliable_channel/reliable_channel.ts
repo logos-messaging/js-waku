@@ -36,7 +36,7 @@ import { RetryManager } from "./retry_manager.js";
 const log = new Logger("sdk:reliable-channel");
 
 const DEFAULT_SYNC_MIN_INTERVAL_MS = 30 * 1000; // 30 seconds
-const DEFAULT_SYNC_MIN_INTERVAL_WITH_REPAIRS_MS = 10 * 1000; // 10 seconds when repairs pending
+const SYNC_INTERVAL_REPAIR_MULTIPLIER = 0.3; // Reduce sync interval when repairs pending
 const DEFAULT_RETRY_INTERVAL_MS = 30 * 1000; // 30 seconds
 const DEFAULT_MAX_RETRY_ATTEMPTS = 10;
 const DEFAULT_SWEEP_IN_BUF_INTERVAL_MS = 5 * 1000;
@@ -511,10 +511,7 @@ export class ReliableChannel<
     this.restartSync();
     this.startSweepIncomingBufferLoop();
 
-    // Only start repair sweep if SDS-R is enabled
-    if (this.shouldUseSdsR()) {
-      this.startRepairSweepLoop();
-    }
+    this.startRepairSweepLoop();
 
     if (this._retrieve) {
       this.missingMessageRetriever?.start();
@@ -552,6 +549,9 @@ export class ReliableChannel<
   }
 
   private startRepairSweepLoop(): void {
+    if (!this.shouldUseSdsR()) {
+      return;
+    }
     this.stopRepairSweepLoop();
     this.sweepRepairInterval = setInterval(() => {
       void this.messageChannel
@@ -597,7 +597,7 @@ export class ReliableChannel<
       const hasPendingRepairs =
         this.shouldUseSdsR() && this.messageChannel.hasPendingRepairRequests();
       const baseInterval = hasPendingRepairs
-        ? DEFAULT_SYNC_MIN_INTERVAL_WITH_REPAIRS_MS
+        ? this.syncMinIntervalMs * SYNC_INTERVAL_REPAIR_MULTIPLIER
         : this.syncMinIntervalMs;
 
       const timeoutMs = this.random() * baseInterval * multiplier;
@@ -755,11 +755,7 @@ export class ReliableChannel<
         for (const { messageId, retrievalHint } of event.detail) {
           // Store retrieval (for 'both' and 'store-only' strategies)
           // SDS-R repair happens automatically via RepairManager for 'both' and 'sds-r-only'
-          if (
-            this.shouldUseStore() &&
-            retrievalHint &&
-            this.missingMessageRetriever
-          ) {
+          if (retrievalHint && this.missingMessageRetriever) {
             this.missingMessageRetriever.addMissingMessage(
               messageId,
               retrievalHint
