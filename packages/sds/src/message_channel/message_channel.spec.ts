@@ -1259,4 +1259,60 @@ describe("MessageChannel", function () {
       expect(channelB["lamportTimestamp"]).to.equal(timestampBefore);
     });
   });
+
+  describe("Default localStorage persistence", () => {
+    it("should restore messages from localStorage on channel recreation", async () => {
+      const persistentChannelId = "persistent-channel";
+
+      const channel1 = new MessageChannel(persistentChannelId, "alice");
+
+      await sendMessage(channel1, utf8ToBytes("msg-1"), callback);
+      await sendMessage(channel1, utf8ToBytes("msg-2"), callback);
+
+      expect(channel1["localHistory"].length).to.equal(2);
+
+      // Recreate channel with same storage - should load history
+      const channel2 = new MessageChannel(persistentChannelId, "alice");
+
+      expect(channel2["localHistory"].length).to.equal(2);
+      expect(
+        channel2["localHistory"].slice(0).map((m) => m.messageId)
+      ).to.deep.equal([
+        MessageChannel.getMessageId(utf8ToBytes("msg-1")),
+        MessageChannel.getMessageId(utf8ToBytes("msg-2"))
+      ]);
+    });
+
+    it("should include persisted messages in causal history after restart", async () => {
+      const persistentChannelId = "persistent-causal";
+
+      const channel1 = new MessageChannel(persistentChannelId, "alice", {
+        causalHistorySize: 2
+      });
+
+      await sendMessage(channel1, utf8ToBytes("msg-1"), callback);
+      await sendMessage(channel1, utf8ToBytes("msg-2"), callback);
+      await sendMessage(channel1, utf8ToBytes("msg-3"), callback);
+
+      const channel2 = new MessageChannel(persistentChannelId, "alice", {
+        causalHistorySize: 2
+      });
+
+      let capturedMessage: ContentMessage | null = null;
+      await sendMessage(channel2, utf8ToBytes("msg-4"), async (message) => {
+        capturedMessage = message;
+        return { success: true };
+      });
+
+      expect(capturedMessage).to.not.be.null;
+      expect(capturedMessage!.causalHistory).to.have.lengthOf(2);
+      // Should reference the last 2 messages (msg-2 and msg-3)
+      expect(capturedMessage!.causalHistory[0].messageId).to.equal(
+        MessageChannel.getMessageId(utf8ToBytes("msg-2"))
+      );
+      expect(capturedMessage!.causalHistory[1].messageId).to.equal(
+        MessageChannel.getMessageId(utf8ToBytes("msg-3"))
+      );
+    });
+  });
 });

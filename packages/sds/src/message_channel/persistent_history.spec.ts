@@ -59,4 +59,41 @@ describe("PersistentHistory", () => {
     expect(history.length).to.equal(1);
     expect(history.slice(0)[0].messageId).to.equal("msg-3");
   });
+
+  it("handles corrupt data in storage gracefully", () => {
+    const storage = new MemoryStorage();
+    storage.setItem("waku:sds:history:channel-1", "{ invalid json }");
+
+    const history = new PersistentHistory({ channelId, storage });
+    expect(history.length).to.equal(0);
+
+    // Local history should be empty
+    expect(storage.getItem("waku:sds:history:channel-1")).to.equal(null);
+  });
+
+  it("isolates history by channel ID", () => {
+    const storage = new MemoryStorage();
+
+    const history1 = new PersistentHistory({
+      channelId: "channel-1",
+      storage
+    });
+    const history2 = new PersistentHistory({
+      channelId: "channel-2",
+      storage
+    });
+
+    history1.push(createMessage("msg-1", 1));
+    history2.push(createMessage("msg-2", 2));
+
+    // Each channel should only see its own messages
+    expect(history1.length).to.equal(1);
+    expect(history1.slice(0)[0].messageId).to.equal("msg-1");
+
+    expect(history2.length).to.equal(1);
+    expect(history2.slice(0)[0].messageId).to.equal("msg-2");
+
+    expect(storage.getItem("waku:sds:history:channel-1")).to.not.be.null;
+    expect(storage.getItem("waku:sds:history:channel-2")).to.not.be.null;
+  });
 });
