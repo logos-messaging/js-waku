@@ -1,8 +1,8 @@
 import { Logger } from "@waku/utils";
 
+import type { ILocalHistory } from "../mem_local_history.js";
 import type { HistoryEntry, MessageId } from "../message.js";
 import { Message } from "../message.js";
-import type { ILocalHistory } from "../message_channel.js";
 
 import { IncomingRepairBuffer, OutgoingRepairBuffer } from "./buffers.js";
 import {
@@ -191,9 +191,7 @@ export class RepairManager {
       this.outgoingBuffer.remove(request.messageId);
 
       // Check if we have this message
-      const message = localHistory.find(
-        (m) => m.messageId === request.messageId
-      );
+      const message = localHistory.getMessage(request.messageId);
       if (!message) {
         log.info(
           `Cannot fulfill repair for ${request.messageId} - not in local history`
@@ -255,7 +253,7 @@ export class RepairManager {
     const messages: Message[] = [];
 
     for (const entry of ready) {
-      const message = localHistory.find((m) => m.messageId === entry.messageId);
+      const message = localHistory.getMessage(entry.messageId);
       if (message) {
         messages.push(message);
         log.info(`Sending repair for ${entry.messageId}`);

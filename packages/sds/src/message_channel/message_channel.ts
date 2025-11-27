@@ -454,7 +454,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
       this.channelId,
       this.senderId,
       this.localHistory
-        .slice(-this.causalHistorySize)
+        .getRecentMessages(this.causalHistorySize)
         .map(({ messageId, retrievalHint, senderId }) => {
           return { messageId, retrievalHint, senderId };
         }),
@@ -676,7 +676,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
         this.channelId,
         this.senderId,
         this.localHistory
-          .slice(-this.causalHistorySize)
+          .getRecentMessages(this.causalHistorySize)
           .map(({ messageId, retrievalHint, senderId }) => {
             return { messageId, retrievalHint, senderId };
           }),
@@ -699,7 +699,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
         if (success && isContentMessage(message)) {
           message.retrievalHint = retrievalHint;
           this.filter.insert(messageId);
-          this.localHistory.push(message);
+          this.localHistory.addMessages(message);
           this.timeReceived.set(messageId, Date.now());
           this.safeSendEvent(MessageChannelEvent.OutMessageSent, {
             detail: message
@@ -749,7 +749,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
    */
   private isMessageAvailable(messageId: MessageId): boolean {
     // Check if in local history
-    if (this.localHistory.some((m) => m.messageId === messageId)) {
+    if (this.localHistory.hasMessage(messageId)) {
       return true;
     }
     // Check if in incoming buffer (already received, waiting for dependencies)
@@ -786,8 +786,8 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
     }
 
     // Check if the entry is already present
-    const existingHistoryEntry = this.localHistory.find(
-      ({ messageId }) => messageId === message.messageId
+    const existingHistoryEntry = this.localHistory.getMessage(
+      message.messageId
     );
 
     // The history entry is already present, no need to re-add
@@ -799,7 +799,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
       log.warn("message delivered without a retrieval hint", message.messageId);
     }
 
-    this.localHistory.push(message);
+    this.localHistory.addMessages(message);
 
     return true;
   }

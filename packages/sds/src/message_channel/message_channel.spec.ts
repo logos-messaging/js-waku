@@ -118,14 +118,10 @@ describe("MessageChannel", function () {
       const messageId = MessageChannel.getMessageId(payload);
       await sendMessage(channelA, payload, callback);
       const messageIdLog = channelA["localHistory"] as ILocalHistory;
-      expect(messageIdLog.length).to.equal(1);
-      expect(
-        messageIdLog.some(
-          (log) =>
-            log.lamportTimestamp === expectedTimestamp &&
-            log.messageId === messageId
-        )
-      ).to.equal(true);
+      expect(messageIdLog.size).to.equal(1);
+      const msg = messageIdLog.getMessage(messageId);
+      expect(msg).to.exist;
+      expect(msg!.lamportTimestamp).to.equal(expectedTimestamp);
     });
 
     it("should add sent message to localHistory with retrievalHint", async () => {
@@ -139,12 +135,10 @@ describe("MessageChannel", function () {
       });
 
       const localHistory = channelA["localHistory"] as ILocalHistory;
-      expect(localHistory.length).to.equal(1);
+      expect(localHistory.size).to.equal(1);
 
       // Find the message in local history
-      const historyEntry = localHistory.find(
-        (entry) => entry.messageId === messageId
-      );
+      const historyEntry = localHistory.getMessage(messageId);
       expect(historyEntry).to.exist;
       expect(historyEntry!.retrievalHint).to.deep.equal(testRetrievalHint);
     });
@@ -296,11 +290,9 @@ describe("MessageChannel", function () {
 
       // Message should not be in local history
       const localHistory = channelB["localHistory"];
-      expect(
-        localHistory.some(
-          ({ messageId }) => messageId === receivedMessage!.messageId
-        )
-      ).to.equal(false);
+      expect(localHistory.hasMessage(receivedMessage!.messageId)).to.equal(
+        false
+      );
     });
 
     it("should add received message to localHistory with retrievalHint", async () => {
@@ -325,12 +317,10 @@ describe("MessageChannel", function () {
       );
 
       const localHistory = channelA["localHistory"] as ILocalHistory;
-      expect(localHistory.length).to.equal(1);
+      expect(localHistory.size).to.equal(1);
 
       // Find the message in local history
-      const historyEntry = localHistory.find(
-        (entry) => entry.messageId === messageId
-      );
+      const historyEntry = localHistory.getMessage(messageId);
       expect(historyEntry).to.exist;
       expect(historyEntry!.retrievalHint).to.deep.equal(testRetrievalHint);
     });
@@ -379,35 +369,35 @@ describe("MessageChannel", function () {
       );
 
       const localHistory = channelA["localHistory"];
-      expect(localHistory.length).to.equal(3);
+      expect(localHistory.size).to.equal(3);
 
       // Verify chronological order: message1 (ts=1), message2 (ts=2), message3 (ts=3)
 
-      const first = localHistory.findIndex(
-        ({ messageId, lamportTimestamp }) => {
+      const first = localHistory
+        .getAllMessages()
+        .findIndex(({ messageId, lamportTimestamp }) => {
           return (
             messageId === message1Id && lamportTimestamp === startTimestamp + 1n
           );
-        }
-      );
+        });
       expect(first).to.eq(0);
 
-      const second = localHistory.findIndex(
-        ({ messageId, lamportTimestamp }) => {
+      const second = localHistory
+        .getAllMessages()
+        .findIndex(({ messageId, lamportTimestamp }) => {
           return (
             messageId === message2Id && lamportTimestamp === startTimestamp + 2n
           );
-        }
-      );
+        });
       expect(second).to.eq(1);
 
-      const third = localHistory.findIndex(
-        ({ messageId, lamportTimestamp }) => {
+      const third = localHistory
+        .getAllMessages()
+        .findIndex(({ messageId, lamportTimestamp }) => {
           return (
             messageId === message3Id && lamportTimestamp === startTimestamp + 3n
           );
-        }
-      );
+        });
       expect(third).to.eq(2);
     });
 
@@ -447,24 +437,24 @@ describe("MessageChannel", function () {
       );
 
       const localHistory = channelA["localHistory"] as ILocalHistory;
-      expect(localHistory.length).to.equal(2);
+      expect(localHistory.size).to.equal(2);
 
       // When timestamps are equal, should be ordered by messageId lexicographically
       // The valueOf() method creates "000000000000005_messageId" for comparison
       const expectedOrder = [message1Id, message2Id].sort();
 
-      const first = localHistory.findIndex(
-        ({ messageId, lamportTimestamp }) => {
+      const first = localHistory
+        .getAllMessages()
+        .findIndex(({ messageId, lamportTimestamp }) => {
           return messageId === expectedOrder[0] && lamportTimestamp == 5n;
-        }
-      );
+        });
       expect(first).to.eq(0);
 
-      const second = localHistory.findIndex(
-        ({ messageId, lamportTimestamp }) => {
+      const second = localHistory
+        .getAllMessages()
+        .findIndex(({ messageId, lamportTimestamp }) => {
           return messageId === expectedOrder[1] && lamportTimestamp == 5n;
-        }
-      );
+        });
       expect(second).to.eq(1);
     });
   });
@@ -1112,7 +1102,7 @@ describe("MessageChannel", function () {
       });
       channelB = createTestChannel(channelId, "bob", { causalHistorySize: 2 });
       const message = utf8ToBytes("first message in channel");
-      channelA["localHistory"].push(
+      channelA["localHistory"].addMessages(
         new ContentMessage(
           MessageChannel.getMessageId(message),
           "MyChannel",
@@ -1156,7 +1146,7 @@ describe("MessageChannel", function () {
       ).to.equal(false);
 
       const localLog = channelA["localHistory"];
-      expect(localLog.length).to.equal(1); // beforeEach adds one message
+      expect(localLog.size).to.equal(1); // beforeEach adds one message
     });
 
     it("should not be delivered", async () => {
@@ -1170,7 +1160,7 @@ describe("MessageChannel", function () {
       expect(timestampAfter).to.equal(timestampBefore);
 
       const localLog = channelB["localHistory"];
-      expect(localLog.length).to.equal(0);
+      expect(localLog.size).to.equal(0);
 
       const bloomFilter = getBloomFilter(channelB);
       expect(
@@ -1230,7 +1220,7 @@ describe("MessageChannel", function () {
       const channelB = createTestChannel(channelId, "bob");
 
       // Track initial state
-      const localHistoryBefore = channelB["localHistory"].length;
+      const localHistoryBefore = channelB["localHistory"].size;
       const incomingBufferBefore = channelB["incomingBuffer"].length;
       const timestampBefore = channelB["lamportTimestamp"];
 
@@ -1248,7 +1238,7 @@ describe("MessageChannel", function () {
 
       // Verify ephemeral message behavior:
       // 1. Not added to local history
-      expect(channelB["localHistory"].length).to.equal(localHistoryBefore);
+      expect(channelB["localHistory"].size).to.equal(localHistoryBefore);
       // 2. Not added to incoming buffer
       expect(channelB["incomingBuffer"].length).to.equal(incomingBufferBefore);
       // 3. Doesn't update lamport timestamp
@@ -1272,14 +1262,14 @@ describe("MessageChannel", function () {
       await sendMessage(channel1, utf8ToBytes("msg-1"), callback);
       await sendMessage(channel1, utf8ToBytes("msg-2"), callback);
 
-      expect(channel1["localHistory"].length).to.equal(2);
+      expect(channel1["localHistory"].size).to.equal(2);
 
       // Recreate channel with same storage - should load history
       const channel2 = new MessageChannel(persistentChannelId, "alice");
 
-      expect(channel2["localHistory"].length).to.equal(2);
+      expect(channel2["localHistory"].size).to.equal(2);
       expect(
-        channel2["localHistory"].slice(0).map((m) => m.messageId)
+        channel2["localHistory"].getAllMessages().map((m) => m.messageId)
       ).to.deep.equal([
         MessageChannel.getMessageId(utf8ToBytes("msg-1")),
         MessageChannel.getMessageId(utf8ToBytes("msg-2"))

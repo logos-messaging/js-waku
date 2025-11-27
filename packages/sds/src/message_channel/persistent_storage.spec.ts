@@ -15,27 +15,26 @@ describe("PersistentStorage", () => {
       expect(persistentStorage).to.not.be.undefined;
 
       const history1 = new MemLocalHistory({ storage: persistentStorage });
-      history1.push(createMessage("msg-1", 1));
-      history1.push(createMessage("msg-2", 2));
+      history1.addMessages(createMessage("msg-1", 1));
+      history1.addMessages(createMessage("msg-2", 2));
 
       const history2 = new MemLocalHistory({ storage: persistentStorage });
 
-      expect(history2.length).to.equal(2);
-      expect(history2.slice(0).map((msg) => msg.messageId)).to.deep.equal([
-        "msg-1",
-        "msg-2"
-      ]);
+      expect(history2.size).to.equal(2);
+      expect(
+        history2.getAllMessages().map((msg) => msg.messageId)
+      ).to.deep.equal(["msg-1", "msg-2"]);
     });
 
     it("uses in-memory only when no storage is provided", () => {
       const history = new MemLocalHistory({ maxSize: 100 });
-      history.push(createMessage("msg-3", 3));
+      history.addMessages(createMessage("msg-3", 3));
 
-      expect(history.length).to.equal(1);
-      expect(history.slice(0)[0].messageId).to.equal("msg-3");
+      expect(history.size).to.equal(1);
+      expect(history.getAllMessages()[0].messageId).to.equal("msg-3");
 
       const history2 = new MemLocalHistory({ maxSize: 100 });
-      expect(history2.length).to.equal(0);
+      expect(history2.size).to.equal(0);
     });
 
     it("handles corrupt data in storage gracefully", () => {
@@ -46,7 +45,7 @@ describe("PersistentStorage", () => {
       const persistentStorage = PersistentStorage.create(channelId, storage);
       const history = new MemLocalHistory({ storage: persistentStorage });
 
-      expect(history.length).to.equal(0);
+      expect(history.size).to.equal(0);
 
       // Corrupt data is not saved
       expect(storage.getItem("waku:sds:history:channel-1")).to.equal(null);
@@ -61,14 +60,14 @@ describe("PersistentStorage", () => {
       const history1 = new MemLocalHistory({ storage: storage1 });
       const history2 = new MemLocalHistory({ storage: storage2 });
 
-      history1.push(createMessage("msg-1", 1));
-      history2.push(createMessage("msg-2", 2));
+      history1.addMessages(createMessage("msg-1", 1));
+      history2.addMessages(createMessage("msg-2", 2));
 
-      expect(history1.length).to.equal(1);
-      expect(history1.slice(0)[0].messageId).to.equal("msg-1");
+      expect(history1.size).to.equal(1);
+      expect(history1.getAllMessages()[0].messageId).to.equal("msg-1");
 
-      expect(history2.length).to.equal(1);
-      expect(history2.slice(0)[0].messageId).to.equal("msg-2");
+      expect(history2.size).to.equal(1);
+      expect(history2.getAllMessages()[0].messageId).to.equal("msg-2");
 
       expect(storage.getItem("waku:sds:history:channel-1")).to.not.be.null;
       expect(storage.getItem("waku:sds:history:channel-2")).to.not.be.null;
@@ -81,7 +80,7 @@ describe("PersistentStorage", () => {
 
       expect(storage.getItem("waku:sds:history:channel-1")).to.be.null;
 
-      history.push(createMessage("msg-1", 1));
+      history.addMessages(createMessage("msg-1", 1));
 
       expect(storage.getItem("waku:sds:history:channel-1")).to.not.be.null;
 
@@ -95,15 +94,15 @@ describe("PersistentStorage", () => {
       const persistentStorage1 = PersistentStorage.create(channelId, storage);
       const history1 = new MemLocalHistory({ storage: persistentStorage1 });
 
-      history1.push(createMessage("msg-1", 1));
-      history1.push(createMessage("msg-2", 2));
-      history1.push(createMessage("msg-3", 3));
+      history1.addMessages(createMessage("msg-1", 1));
+      history1.addMessages(createMessage("msg-2", 2));
+      history1.addMessages(createMessage("msg-3", 3));
 
       const persistentStorage2 = PersistentStorage.create(channelId, storage);
       const history2 = new MemLocalHistory({ storage: persistentStorage2 });
 
-      expect(history2.length).to.equal(3);
-      expect(history2.slice(0).map((m) => m.messageId)).to.deep.equal([
+      expect(history2.size).to.equal(3);
+      expect(history2.getAllMessages().map((m) => m.messageId)).to.deep.equal([
         "msg-1",
         "msg-2",
         "msg-3"
@@ -135,16 +134,15 @@ describe("PersistentStorage", () => {
     it("persists and restores messages with channelId", () => {
       const testChannelId = `test-${Date.now()}`;
       const history1 = new MemLocalHistory({ storage: testChannelId });
-      history1.push(createMessage("msg-1", 1));
-      history1.push(createMessage("msg-2", 2));
+      history1.addMessages(createMessage("msg-1", 1));
+      history1.addMessages(createMessage("msg-2", 2));
 
       const history2 = new MemLocalHistory({ storage: testChannelId });
 
-      expect(history2.length).to.equal(2);
-      expect(history2.slice(0).map((msg) => msg.messageId)).to.deep.equal([
-        "msg-1",
-        "msg-2"
-      ]);
+      expect(history2.size).to.equal(2);
+      expect(
+        history2.getAllMessages().map((msg) => msg.messageId)
+      ).to.deep.equal(["msg-1", "msg-2"]);
 
       localStorage.removeItem(`waku:sds:history:${testChannelId}`);
     });
@@ -153,12 +151,12 @@ describe("PersistentStorage", () => {
       const testChannelId = `auto-storage-${Date.now()}`;
 
       const history = new MemLocalHistory({ storage: testChannelId });
-      history.push(createMessage("msg-auto-1", 1));
-      history.push(createMessage("msg-auto-2", 2));
+      history.addMessages(createMessage("msg-auto-1", 1));
+      history.addMessages(createMessage("msg-auto-2", 2));
 
       const history2 = new MemLocalHistory({ storage: testChannelId });
-      expect(history2.length).to.equal(2);
-      expect(history2.slice(0).map((m) => m.messageId)).to.deep.equal([
+      expect(history2.size).to.equal(2);
+      expect(history2.getAllMessages().map((m) => m.messageId)).to.deep.equal([
         "msg-auto-1",
         "msg-auto-2"
       ]);
