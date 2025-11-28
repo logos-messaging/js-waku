@@ -1,7 +1,12 @@
 import { Logger } from "@waku/utils";
 import _ from "lodash";
 
-import { type ChannelId, ContentMessage, isContentMessage } from "./message.js";
+import {
+  type ChannelId,
+  ContentMessage,
+  type HistoryEntry,
+  isContentMessage
+} from "./message.js";
 import { PersistentStorage } from "./persistent_storage.js";
 
 export const DEFAULT_MAX_LENGTH = 10_000;
@@ -20,33 +25,13 @@ export const DEFAULT_MAX_LENGTH = 10_000;
  * at next push.
  */
 export interface ILocalHistory {
-  length: number;
-  push(...items: ContentMessage[]): number;
-  some(
-    predicate: (
-      value: ContentMessage,
-      index: number,
-      array: ContentMessage[]
-    ) => unknown,
-    thisArg?: any
-  ): boolean;
-  slice(start?: number, end?: number): ContentMessage[];
-  find(
-    predicate: (
-      value: ContentMessage,
-      index: number,
-      obj: ContentMessage[]
-    ) => unknown,
-    thisArg?: any
-  ): ContentMessage | undefined;
-  findIndex(
-    predicate: (
-      value: ContentMessage,
-      index: number,
-      obj: ContentMessage[]
-    ) => unknown,
-    thisArg?: any
-  ): number;
+  readonly size: number;
+  addMessages(...messages: ContentMessage[]): void;
+  hasMessage(messageId: string): boolean;
+  getMessage(messageId: string): ContentMessage | undefined;
+  getRecentMessages(count: number): ContentMessage[];
+  getAllMessages(): ContentMessage[];
+  findMissingDependencies(entries: HistoryEntry[]): HistoryEntry[];
 }
 
 export type MemLocalHistoryOptions = {
@@ -58,6 +43,7 @@ const log = new Logger("sds:local-history");
 
 export class MemLocalHistory implements ILocalHistory {
   private items: ContentMessage[] = [];
+  private messageIndex: Map<string, ContentMessage> = new Map();
   private readonly storage?: PersistentStorage;
   private readonly maxSize: number;
 
@@ -85,18 +71,18 @@ export class MemLocalHistory implements ILocalHistory {
     this.load();
   }
 
-  public get length(): number {
+  public get size(): number {
     return this.items.length;
   }
 
-  public push(...items: ContentMessage[]): number {
-    for (const item of items) {
-      this.validateMessage(item);
+  public addMessages(...messages: ContentMessage[]): void {
+    for (const message of messages) {
+      this.validateMessage(message);
     }
 
     // Add new items and sort by timestamp, ensuring uniqueness by messageId
     // The valueOf() method on ContentMessage enables native < operator sorting
-    const combinedItems = [...this.items, ...items];
+    const combinedItems = [...this.items, ...messages];
 
     // Sort by timestamp (using valueOf() which creates timestamp_messageId string)
     combinedItems.sort((a, b) => a.valueOf().localeCompare(b.valueOf()));
@@ -104,52 +90,45 @@ export class MemLocalHistory implements ILocalHistory {
     // Remove duplicates by messageId while maintaining order
     this.items = _.uniqBy(combinedItems, "messageId");
 
+    this.rebuildIndex();
+
     // Let's drop older messages if max length is reached
-    if (this.length > this.maxSize) {
-      const numItemsToRemove = this.length - this.maxSize;
-      this.items.splice(0, numItemsToRemove);
+    if (this.size > this.maxSize) {
+      const numItemsToRemove = this.size - this.maxSize;
+      const removedItems = this.items.splice(0, numItemsToRemove);
+      for (const item of removedItems) {
+        this.messageIndex.delete(item.messageId);
+      }
     }
 
     this.save();
-
-    return this.items.length;
   }
 
-  public some(
-    predicate: (
-      value: ContentMessage,
-      index: number,
-      array: ContentMessage[]
-    ) => unknown,
-    thisArg?: any
-  ): boolean {
-    return this.items.some(predicate, thisArg);
+  public hasMessage(messageId: string): boolean {
+    return this.messageIndex.has(messageId);
   }
 
-  public slice(start?: number, end?: number): ContentMessage[] {
-    return this.items.slice(start, end);
+  public getRecentMessages(count: number): ContentMessage[] {
+    return this.items.slice(-count);
   }
 
-  public find(
-    predicate: (
-      value: ContentMessage,
-      index: number,
-      obj: ContentMessage[]
-    ) => unknown,
-    thisArg?: any
-  ): ContentMessage | undefined {
-    return this.items.find(predicate, thisArg);
+  public getAllMessages(): ContentMessage[] {
+    return [...this.items];
   }
 
-  public findIndex(
-    predicate: (
-      value: ContentMessage,
-      index: number,
-      obj: ContentMessage[]
-    ) => unknown,
-    thisArg?: any
-  ): number {
-    return this.items.findIndex(predicate, thisArg);
+  public getMessage(messageId: string): ContentMessage | undefined {
+    return this.messageIndex.get(messageId);
+  }
+
+  public findMissingDependencies(entries: HistoryEntry[]): HistoryEntry[] {
+    return entries.filter((entry) => !this.messageIndex.has(entry.messageId));
+  }
+
+  private rebuildIndex(): void {
+    this.messageIndex.clear();
+    for (const message of this.items) {
+      this.messageIndex.set(message.messageId, message);
+    }
   }
 
   private validateMessage(message: ContentMessage): void {
@@ -168,6 +147,7 @@ export class MemLocalHistory implements ILocalHistory {
     const messages = this.storage?.load() ?? [];
     if (messages.length > 0) {
       this.items = messages;
+      this.rebuildIndex();
     }
   }
 }

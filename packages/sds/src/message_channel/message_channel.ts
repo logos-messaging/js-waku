@@ -297,9 +297,8 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
           message.messageId,
           message.causalHistory.map((ch) => ch.messageId)
         );
-        const missingDependencies = message.causalHistory.filter(
-          (messageHistoryEntry) =>
-            !this.isMessageAvailable(messageHistoryEntry.messageId)
+        const missingDependencies = this.findMissingDependencies(
+          message.causalHistory
         );
         if (missingDependencies.length === 0) {
           if (isContentMessage(message) && this.deliverMessage(message)) {
@@ -454,7 +453,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
       this.channelId,
       this.senderId,
       this.localHistory
-        .slice(-this.causalHistorySize)
+        .getRecentMessages(this.causalHistorySize)
         .map(({ messageId, retrievalHint, senderId }) => {
           return { messageId, retrievalHint, senderId };
         }),
@@ -583,9 +582,8 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
       this.filter.insert(message.messageId);
     }
 
-    const missingDependencies = message.causalHistory.filter(
-      (messageHistoryEntry) =>
-        !this.isMessageAvailable(messageHistoryEntry.messageId)
+    const missingDependencies = this.findMissingDependencies(
+      message.causalHistory
     );
 
     if (missingDependencies.length > 0) {
@@ -676,7 +674,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
         this.channelId,
         this.senderId,
         this.localHistory
-          .slice(-this.causalHistorySize)
+          .getRecentMessages(this.causalHistorySize)
           .map(({ messageId, retrievalHint, senderId }) => {
             return { messageId, retrievalHint, senderId };
           }),
@@ -699,7 +697,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
         if (success && isContentMessage(message)) {
           message.retrievalHint = retrievalHint;
           this.filter.insert(messageId);
-          this.localHistory.push(message);
+          this.localHistory.addMessages(message);
           this.timeReceived.set(messageId, Date.now());
           this.safeSendEvent(MessageChannelEvent.OutMessageSent, {
             detail: message
@@ -739,24 +737,15 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
     }
   }
 
-  /**
-   * Check if a message is available (either in localHistory or incomingBuffer)
-   * This prevents treating messages as "missing" when they've already been received
-   * but are waiting in the incoming buffer for their dependencies.
-   *
-   * @param messageId - The ID of the message to check
-   * @private
-   */
-  private isMessageAvailable(messageId: MessageId): boolean {
-    // Check if in local history
-    if (this.localHistory.some((m) => m.messageId === messageId)) {
-      return true;
-    }
-    // Check if in incoming buffer (already received, waiting for dependencies)
-    if (this.incomingBuffer.some((m) => m.messageId === messageId)) {
-      return true;
-    }
-    return false;
+  private findMissingDependencies(entries: HistoryEntry[]): HistoryEntry[] {
+    const missingFromHistory =
+      this.localHistory.findMissingDependencies(entries);
+
+    const incomingIds = new Set(this.incomingBuffer.map((m) => m.messageId));
+
+    return missingFromHistory.filter(
+      (entry) => !incomingIds.has(entry.messageId)
+    );
   }
 
   /**
@@ -786,8 +775,8 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
     }
 
     // Check if the entry is already present
-    const existingHistoryEntry = this.localHistory.find(
-      ({ messageId }) => messageId === message.messageId
+    const existingHistoryEntry = this.localHistory.getMessage(
+      message.messageId
     );
 
     // The history entry is already present, no need to re-add
@@ -799,7 +788,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
       log.warn("message delivered without a retrieval hint", message.messageId);
     }
 
-    this.localHistory.push(message);
+    this.localHistory.addMessages(message);
 
     return true;
   }

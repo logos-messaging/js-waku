@@ -9,23 +9,23 @@ describe("MemLocalHistory", () => {
 
     const hist = new MemLocalHistory({ maxSize: maxSize });
 
-    hist.push(
+    hist.addMessages(
       new ContentMessage("1", "c", "a", [], 1n, undefined, new Uint8Array([1]))
     );
-    expect(hist.length).to.eq(1);
-    hist.push(
+    expect(hist.size).to.eq(1);
+    hist.addMessages(
       new ContentMessage("2", "c", "a", [], 2n, undefined, new Uint8Array([2]))
     );
-    expect(hist.length).to.eq(2);
+    expect(hist.size).to.eq(2);
 
-    hist.push(
+    hist.addMessages(
       new ContentMessage("3", "c", "a", [], 3n, undefined, new Uint8Array([3]))
     );
-    expect(hist.length).to.eq(2);
+    expect(hist.size).to.eq(2);
 
-    expect(hist.findIndex((m) => m.messageId === "1")).to.eq(-1);
-    expect(hist.findIndex((m) => m.messageId === "2")).to.not.eq(-1);
-    expect(hist.findIndex((m) => m.messageId === "3")).to.not.eq(-1);
+    expect(hist.hasMessage("1")).to.eq(false);
+    expect(hist.hasMessage("2")).to.eq(true);
+    expect(hist.hasMessage("3")).to.eq(true);
   });
 
   it("Cap max size when a pushed array is exceeding the cap", () => {
@@ -33,18 +33,18 @@ describe("MemLocalHistory", () => {
 
     const hist = new MemLocalHistory({ maxSize: maxSize });
 
-    hist.push(
+    hist.addMessages(
       new ContentMessage("1", "c", "a", [], 1n, undefined, new Uint8Array([1]))
     );
-    expect(hist.length).to.eq(1);
-    hist.push(
+    expect(hist.size).to.eq(1);
+    hist.addMessages(
       new ContentMessage("2", "c", "a", [], 2n, undefined, new Uint8Array([2])),
       new ContentMessage("3", "c", "a", [], 3n, undefined, new Uint8Array([3]))
     );
-    expect(hist.length).to.eq(2);
+    expect(hist.size).to.eq(2);
 
-    expect(hist.findIndex((m) => m.messageId === "1")).to.eq(-1);
-    expect(hist.findIndex((m) => m.messageId === "2")).to.not.eq(-1);
-    expect(hist.findIndex((m) => m.messageId === "3")).to.not.eq(-1);
+    expect(hist.hasMessage("1")).to.eq(false);
+    expect(hist.hasMessage("2")).to.eq(true);
+    expect(hist.hasMessage("3")).to.eq(true);
   });
 });
