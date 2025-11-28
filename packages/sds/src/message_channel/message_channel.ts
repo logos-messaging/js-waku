@@ -749,26 +749,6 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
   }
 
   /**
-   * Check if a message is available (either in localHistory or incomingBuffer)
-   * This prevents treating messages as "missing" when they've already been received
-   * but are waiting in the incoming buffer for their dependencies.
-   *
-   * @param messageId - The ID of the message to check
-   * @private
-   */
-  private isMessageAvailable(messageId: MessageId): boolean {
-    // Check if in local history
-    if (this.localHistory.hasMessage(messageId)) {
-      return true;
-    }
-    // Check if in incoming buffer (already received, waiting for dependencies)
-    if (this.incomingBuffer.some((m) => m.messageId === messageId)) {
-      return true;
-    }
-    return false;
-  }
-
-  /**
    * Return true if the message was "delivered"
    *
    * @param message
