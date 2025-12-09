@@ -318,7 +318,7 @@ describe("MessageChannel", function () {
         testRetrievalHint
       );
 
-      const localHistory = channelA["localHistory"] as ILocalHistory;
+      const localHistory = channelA["localHistory"] as LocalHistory;
       expect(localHistory.length).to.equal(1);
 
       // Find the message in local history
@@ -440,7 +440,7 @@ describe("MessageChannel", function () {
         )
       );
 
-      const localHistory = channelA["localHistory"] as ILocalHistory;
+      const localHistory = channelA["localHistory"] as LocalHistory;
       expect(localHistory.length).to.equal(2);
 
       // When timestamps are equal, should be ordered by messageId lexicographically

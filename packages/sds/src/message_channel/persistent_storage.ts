@@ -5,15 +5,15 @@ import { ChannelId, ContentMessage, HistoryEntry } from "./message.js";
 
 const log = new Logger("sds:persistent-storage");
 
-const HISTORY_STORAGE_PREFIX = "waku:sds:history:";
+const STORAGE_PREFIX = "waku:sds:storage:";
 
-export interface HistoryStorage {
+export interface IStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
 }
 
-type StoredHistoryEntry = {
+type StoredCausalEntry = {
   messageId: string;
   retrievalHint?: string;
 };
@@ -23,14 +23,14 @@ type StoredContentMessage = {
   channelId: string;
   senderId: string;
   lamportTimestamp: string;
-  causalHistory: StoredHistoryEntry[];
+  causalHistory: StoredCausalEntry[];
   bloomFilter?: string;
   content: string;
   retrievalHint?: string;
 };
 
 /**
- * Persistent storage for message history.
+ * Persistent storage for messages.
  */
 export class PersistentStorage {
   private readonly storageKey: string;
@@ -42,7 +42,7 @@ export class PersistentStorage {
    */
   public static create(
     channelId: ChannelId,
-    storage?: HistoryStorage
+    storage?: IStorage
   ): PersistentStorage | undefined {
     storage =
       storage ??
@@ -59,9 +59,9 @@ export class PersistentStorage {
 
   private constructor(
     channelId: ChannelId,
-    private readonly storage: HistoryStorage
+    private readonly storage: IStorage
   ) {
-    this.storageKey = `${HISTORY_STORAGE_PREFIX}${channelId}`;
+    this.storageKey = `${STORAGE_PREFIX}${channelId}`;
   }
 
   public save(messages: ContentMessage[]): void {
@@ -104,7 +104,7 @@ class MessageSerializer {
       senderId: message.senderId,
       lamportTimestamp: message.lamportTimestamp.toString(),
       causalHistory: message.causalHistory.map((entry) =>
-        MessageSerializer.serializeHistoryEntry(entry)
+        MessageSerializer.serializeCausalEntry(entry)
       ),
       bloomFilter: MessageSerializer.toHex(message.bloomFilter),
       content: bytesToHex(new Uint8Array(message.content)),
@@ -122,7 +122,7 @@ class MessageSerializer {
         record.channelId,
         record.senderId,
         record.causalHistory.map((entry) =>
-          MessageSerializer.deserializeHistoryEntry(entry)
+          MessageSerializer.deserializeCausalEntry(entry)
         ),
         BigInt(record.lamportTimestamp),
         MessageSerializer.fromHex(record.bloomFilter),
@@ -135,7 +135,7 @@ class MessageSerializer {
     }
   }
 
-  public static serializeHistoryEntry(entry: HistoryEntry): StoredHistoryEntry {
+  public static serializeCausalEntry(entry: HistoryEntry): StoredCausalEntry {
     return {
       messageId: entry.messageId,
       retrievalHint: entry.retrievalHint
@@ -144,9 +144,7 @@ class MessageSerializer {
     };
   }
 
-  public static deserializeHistoryEntry(
-    entry: StoredHistoryEntry
-  ): HistoryEntry {
+  public static deserializeCausalEntry(entry: StoredCausalEntry): HistoryEntry {
     return {
       messageId: entry.messageId,
       retrievalHint: entry.retrievalHint

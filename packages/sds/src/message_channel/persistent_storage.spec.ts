@@ -2,7 +2,7 @@ import { expect } from "chai";
 
 import { LocalHistory } from "./local_history.js";
 import { ContentMessage } from "./message.js";
-import { HistoryStorage, PersistentStorage } from "./persistent_storage.js";
+import { IStorage, PersistentStorage } from "./persistent_storage.js";
 
 const channelId = "channel-1";
 
@@ -41,7 +41,7 @@ describe("PersistentStorage", () => {
     it("handles corrupt data in storage gracefully", () => {
       const storage = new MemoryStorage();
       // Corrupt data
-      storage.setItem("waku:sds:history:channel-1", "{ invalid json }");
+      storage.setItem("waku:sds:messages:channel-1", "{ invalid json }");
 
       const persistentStorage = PersistentStorage.create(channelId, storage);
       const history = new LocalHistory({ storage: persistentStorage });
@@ -49,7 +49,7 @@ describe("PersistentStorage", () => {
       expect(history.length).to.equal(0);
 
       // Corrupt data is not saved
-      expect(storage.getItem("waku:sds:history:channel-1")).to.equal(null);
+      expect(storage.getItem("waku:sds:messages:channel-1")).to.equal(null);
     });
 
     it("isolates history by channel ID", () => {
@@ -70,8 +70,8 @@ describe("PersistentStorage", () => {
       expect(history2.length).to.equal(1);
       expect(history2.slice(0)[0].messageId).to.equal("msg-2");
 
-      expect(storage.getItem("waku:sds:history:channel-1")).to.not.be.null;
-      expect(storage.getItem("waku:sds:history:channel-2")).to.not.be.null;
+      expect(storage.getItem("waku:sds:messages:channel-1")).to.not.be.null;
+      expect(storage.getItem("waku:sds:messages:channel-2")).to.not.be.null;
     });
 
     it("saves messages after each push", () => {
@@ -79,13 +79,13 @@ describe("PersistentStorage", () => {
       const persistentStorage = PersistentStorage.create(channelId, storage);
       const history = new LocalHistory({ storage: persistentStorage });
 
-      expect(storage.getItem("waku:sds:history:channel-1")).to.be.null;
+      expect(storage.getItem("waku:sds:messages:channel-1")).to.be.null;
 
       history.push(createMessage("msg-1", 1));
 
-      expect(storage.getItem("waku:sds:history:channel-1")).to.not.be.null;
+      expect(storage.getItem("waku:sds:messages:channel-1")).to.not.be.null;
 
-      const saved = JSON.parse(storage.getItem("waku:sds:history:channel-1")!);
+      const saved = JSON.parse(storage.getItem("waku:sds:messages:channel-1")!);
       expect(saved).to.have.lengthOf(1);
       expect(saved[0].messageId).to.equal("msg-1");
     });
@@ -146,7 +146,7 @@ describe("PersistentStorage", () => {
         "msg-2"
       ]);
 
-      localStorage.removeItem(`waku:sds:history:${testChannelId}`);
+      localStorage.removeItem(`waku:sds:messages:${testChannelId}`);
     });
 
     it("auto-uses localStorage when channelId is provided", () => {
@@ -163,7 +163,7 @@ describe("PersistentStorage", () => {
         "msg-auto-2"
       ]);
 
-      localStorage.removeItem(`waku:sds:history:${testChannelId}`);
+      localStorage.removeItem(`waku:sds:messages:${testChannelId}`);
     });
   });
 });
@@ -181,7 +181,7 @@ const createMessage = (id: string, timestamp: number): ContentMessage => {
   );
 };
 
-class MemoryStorage implements HistoryStorage {
+class MemoryStorage implements IStorage {
   private readonly store = new Map<string, string>();
 
   public getItem(key: string): string | null {

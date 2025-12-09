@@ -1,8 +1,8 @@
 import { Logger } from "@waku/utils";
 
+import { LocalHistory } from "../local_history.js";
 import type { HistoryEntry, MessageId } from "../message.js";
 import { Message } from "../message.js";
-import type { ILocalHistory } from "../message_channel.js";
 
 import { IncomingRepairBuffer, OutgoingRepairBuffer } from "./buffers.js";
 import {
@@ -183,7 +183,7 @@ export class RepairManager {
    */
   public processIncomingRepairRequests(
     requests: HistoryEntry[],
-    localHistory: ILocalHistory,
+    localHistory: LocalHistory,
     currentTime = Date.now()
   ): void {
     for (const request of requests) {
@@ -248,7 +248,7 @@ export class RepairManager {
    * Returns messages that should be rebroadcast
    */
   public sweepIncomingBuffer(
-    localHistory: ILocalHistory,
+    localHistory: LocalHistory,
     currentTime = Date.now()
   ): Message[] {
     const ready = this.incomingBuffer.getReady(currentTime);

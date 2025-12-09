@@ -2,7 +2,6 @@ import { Logger } from "@waku/utils";
 import _ from "lodash";
 
 import { type ChannelId, ContentMessage, isContentMessage } from "./message.js";
-import { ILocalHistory } from "./message_channel.js";
 import { PersistentStorage } from "./persistent_storage.js";
 
 export const DEFAULT_MAX_LENGTH = 10_000;
@@ -28,7 +27,7 @@ export type LocalHistoryOptions = {
 
 const log = new Logger("sds:local-history");
 
-export class LocalHistory implements ILocalHistory {
+export class LocalHistory {
   private items: ContentMessage[] = [];
   private readonly storage?: PersistentStorage;
   private readonly maxSize: number;

@@ -38,11 +38,6 @@ const DEFAULT_POSSIBLE_ACKS_THRESHOLD = 2;
 
 const log = new Logger("sds:message-channel");
 
-export type ILocalHistory = Pick<
-  Array<ContentMessage>,
-  "some" | "push" | "slice" | "find" | "length" | "findIndex"
->;
-
 export interface MessageChannelOptions {
   causalHistorySize?: number;
   /**
@@ -76,7 +71,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
   private outgoingBuffer: ContentMessage[];
   private possibleAcks: Map<MessageId, number>;
   private incomingBuffer: Array<ContentMessage | SyncMessage>;
-  private readonly localHistory: ILocalHistory;
+  private readonly localHistory: LocalHistory;
   private timeReceived: Map<MessageId, number>;
   private readonly causalHistorySize: number;
   private readonly possibleAcksThreshold: number;
@@ -106,7 +101,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
     channelId: ChannelId,
     senderId: ParticipantId,
     options: MessageChannelOptions = {},
-    localHistory?: ILocalHistory
+    localHistory?: LocalHistory
   ) {
     super();
     this.channelId = channelId;
