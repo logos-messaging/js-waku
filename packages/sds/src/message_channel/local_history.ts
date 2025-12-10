@@ -1,8 +1,27 @@
+import { Logger } from "@waku/utils";
 import _ from "lodash";
 
 import { ContentMessage, isContentMessage } from "./message.js";
+import { Storage } from "./storage/index.js";
 
 export const DEFAULT_MAX_LENGTH = 10_000;
+
+/**
+ * Options for the LocalHistory constructor.
+ * @param storage - The storage to use for the local history.
+ *   - prefix - The prefix for the storage.
+ *   - customInstance - The custom storage instance to use.
+ * @param maxSize - The maximum number of messages to store.
+ */
+export type LocalHistoryOptions = {
+  storage?: {
+    prefix?: string;
+    customInstance?: Storage;
+  };
+  maxSize?: number;
+};
+
+const log = new Logger("sds:local-history");
 
 /**
  * In-Memory implementation of a local history of messages.
@@ -17,15 +36,28 @@ export const DEFAULT_MAX_LENGTH = 10_000;
  * If an array of items longer than `maxLength` is pushed, dropping will happen
  * at next push.
  */
-export class MemLocalHistory {
+export class LocalHistory {
   private items: ContentMessage[] = [];
+  private readonly storage?: Storage;
+  private readonly maxSize: number;
 
-  /**
-   * Construct a new in-memory local history
-   *
-   * @param maxLength The maximum number of message to store.
-   */
-  public constructor(private maxLength: number = DEFAULT_MAX_LENGTH) {}
+  public constructor(opts: LocalHistoryOptions = {}) {
+    const { storage, maxSize } = opts;
+    const { prefix, customInstance } = storage ?? {};
+    this.maxSize = maxSize ?? DEFAULT_MAX_LENGTH;
+    if (customInstance) {
+      this.storage = customInstance;
+      log.info("Using custom storage instance", { customInstance });
+    } else if (prefix) {
+      this.storage = new Storage(prefix);
+      log.info("Creating storage with prefix", { prefix });
+    } else {
+      this.storage = undefined;
+      log.info("Using in-memory storage");
+    }
+
+    this.load();
+  }
 
   public get length(): number {
     return this.items.length;
@@ -47,10 +79,12 @@ export class MemLocalHistory {
     this.items = _.uniqBy(combinedItems, "messageId");
 
     // Let's drop older messages if max length is reached
-    if (this.length > this.maxLength) {
-      const numItemsToRemove = this.length - this.maxLength;
+    if (this.length > this.maxSize) {
+      const numItemsToRemove = this.length - this.maxSize;
       this.items.splice(0, numItemsToRemove);
     }
+
+    this.save();
 
     return this.items.length;
   }
@@ -97,6 +131,17 @@ export class MemLocalHistory {
       throw new Error(
         "Message must have lamportTimestamp and content defined, sync and ephemeral messages cannot be stored"
       );
+    }
+  }
+
+  private save(): void {
+    this.storage?.save(this.items);
+  }
+
+  private load(): void {
+    const messages = this.storage?.load() ?? [];
+    if (messages.length > 0) {
+      this.items = messages;
     }
   }
 }
