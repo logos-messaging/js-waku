@@ -21,8 +21,10 @@ export const DEFAULT_MAX_LENGTH = 10_000;
  */
 
 export type LocalHistoryOptions = {
-  storagePrefix?: string;
-  storage?: Storage;
+  storage?: {
+    prefix?: string;
+    customInstance?: Storage;
+  };
   maxSize?: number;
 };
 
@@ -42,14 +44,15 @@ export class LocalHistory {
    *   - maxSize: The maximum number of messages to store. Optional, defaults to DEFAULT_MAX_LENGTH.
    */
   public constructor(opts: LocalHistoryOptions = {}) {
-    const { storagePrefix, storage, maxSize } = opts;
+    const { storage, maxSize } = opts;
+    const { prefix, customInstance } = storage ?? {};
     this.maxSize = maxSize ?? DEFAULT_MAX_LENGTH;
-    if (storage) {
-      this.storage = storage;
-      log.info("Using explicit storage");
-    } else if (storagePrefix) {
-      this.storage = new Storage(storagePrefix);
-      log.info("Creating storage for prefix", storagePrefix);
+    if (customInstance) {
+      this.storage = customInstance;
+      log.info("Using custom storage instance", { customInstance });
+    } else if (prefix) {
+      this.storage = new Storage(prefix);
+      log.info("Creating storage with prefix", { prefix });
     } else {
       this.storage = undefined;
       log.info("Using in-memory storage");

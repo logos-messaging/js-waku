@@ -59,7 +59,7 @@ export class MessageSerializer {
     }
   }
 
-  public static serializeCausalEntry(entry: HistoryEntry): StoredCausalEntry {
+  private static serializeCausalEntry(entry: HistoryEntry): StoredCausalEntry {
     return {
       messageId: entry.messageId,
       retrievalHint: entry.retrievalHint
@@ -68,7 +68,9 @@ export class MessageSerializer {
     };
   }
 
-  public static deserializeCausalEntry(entry: StoredCausalEntry): HistoryEntry {
+  private static deserializeCausalEntry(
+    entry: StoredCausalEntry
+  ): HistoryEntry {
     return {
       messageId: entry.messageId,
       retrievalHint: entry.retrievalHint
