@@ -9,3 +9,9 @@ export {
   dateToEpochBytes,
   dateToNanosecondBytes
 } from "./epoch.js";
+export {
+  getPathDirectionsFromIndex,
+  calculateRateCommitment,
+  reconstructMerkleRoot,
+  MERKLE_TREE_DEPTH
+} from "./merkle.js";

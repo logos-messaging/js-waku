@@ -1,8 +1,10 @@
 import { multiaddr } from "@multiformats/multiaddr";
 import { createLightNode, Protocols } from "@waku/sdk";
 import { expect } from "chai";
+import Sinon from "sinon";
 
 import { createRLNEncoder } from "./codec.js";
+import { RLNCredentialsManager } from "./credentials_manager.js";
 import { Keystore } from "./keystore/index.js";
 import { RLNInstance } from "./rln.js";
 import { BytesUtils } from "./utils/index.js";
@@ -82,6 +84,25 @@ describe("RLN Proof Integration Tests", function () {
       BytesUtils.writeUIntLE(new Uint8Array(1), index, 0, 1)
     );
 
+    // Create mock credentials manager
+    const mockCredentialsManager = Sinon.createStubInstance(
+      RLNCredentialsManager
+    );
+
+    // Set up the mock to return test values
+    Object.defineProperty(mockCredentialsManager, "credentials", {
+      get: () => credential,
+      configurable: true
+    });
+    Object.defineProperty(mockCredentialsManager, "pathElements", {
+      get: () => pathElements,
+      configurable: true
+    });
+    Object.defineProperty(mockCredentialsManager, "identityPathIndex", {
+      get: () => identityPathIndex,
+      configurable: true
+    });
+
     // Create base encoder
     const contentTopic = "/rln/1/test/proto";
     const baseEncoder = waku.createEncoder({
@@ -92,9 +113,8 @@ describe("RLN Proof Integration Tests", function () {
     const rlnEncoder = createRLNEncoder({
       encoder: baseEncoder,
       rlnInstance,
-      credential: credential.identity,
-      pathElements,
-      identityPathIndex,
+      credentialsManager:
+        mockCredentialsManager as unknown as RLNCredentialsManager,
       rateLimit
     });
 

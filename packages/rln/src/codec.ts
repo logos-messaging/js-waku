@@ -7,7 +7,7 @@ import type {
 } from "@waku/interfaces";
 import { Logger } from "@waku/utils";
 
-import type { IdentityCredential } from "./identity.js";
+import { RLNCredentialsManager } from "./credentials_manager.js";
 import { Proof } from "./proof.js";
 import { RLNInstance } from "./rln.js";
 import { BytesUtils } from "./utils/bytes.js";
@@ -16,18 +16,12 @@ import { dateToNanosecondBytes } from "./utils/epoch.js";
 const log = new Logger("waku:rln:encoder");
 
 export class RLNEncoder implements IEncoder {
-  private readonly idSecretHash: Uint8Array;
-
   public constructor(
     private readonly encoder: IEncoder,
     private readonly rlnInstance: RLNInstance,
     private readonly rateLimit: number,
-    public pathElements: Uint8Array[],
-    public identityPathIndex: Uint8Array[],
-    identityCredential: IdentityCredential
-  ) {
-    this.idSecretHash = identityCredential.IDSecretHash;
-  }
+    private readonly credentialsManager: RLNCredentialsManager
+  ) {}
 
   private toRlnSignal(message: IMessage): Uint8Array {
     if (!message.timestamp)
@@ -44,11 +38,7 @@ export class RLNEncoder implements IEncoder {
 
   public async toWire(message: IMessage): Promise<Uint8Array | undefined> {
     if (!message.rateLimitProof) {
-      message.rateLimitProof = await this.generateProof(
-        message,
-        this.pathElements,
-        this.identityPathIndex
-      );
+      message.rateLimitProof = await this.generateProof(message);
       log.info("Proof generated", message.rateLimitProof);
     }
     return this.encoder.toWire(message);
@@ -62,11 +52,7 @@ export class RLNEncoder implements IEncoder {
 
     protoMessage.contentTopic = this.contentTopic;
     if (!message.rateLimitProof) {
-      protoMessage.rateLimitProof = await this.generateProof(
-        message,
-        this.pathElements,
-        this.identityPathIndex
-      );
+      protoMessage.rateLimitProof = await this.generateProof(message);
       log.info("Proof generated", protoMessage.rateLimitProof);
     } else {
       protoMessage.rateLimitProof = message.rateLimitProof;
@@ -74,21 +60,26 @@ export class RLNEncoder implements IEncoder {
     return protoMessage;
   }
 
-  private async generateProof(
-    message: IMessage,
-    pathElements: Uint8Array[],
-    identityPathIndex: Uint8Array[]
-  ): Promise<IRateLimitProof> {
+  private async generateProof(message: IMessage): Promise<IRateLimitProof> {
     if (!message.timestamp)
       throw new Error("RLNEncoder: message must have a timestamp set");
+    if (!this.credentialsManager.credentials) {
+      throw new Error("RLNEncoder: credentials not set");
+    }
+    if (
+      !this.credentialsManager.pathElements ||
+      !this.credentialsManager.identityPathIndex
+    ) {
+      throw new Error("RLNEncoder: merkle proof not set");
+    }
     const signal = this.toRlnSignal(message);
     const { proof, epoch, rlnIdentifier } =
       await this.rlnInstance.zerokit.generateRLNProof(
         signal,
         message.timestamp,
-        this.idSecretHash,
-        pathElements,
-        identityPathIndex,
+        this.credentialsManager.credentials.identity.IDSecretHash,
+        this.credentialsManager.pathElements,
+        this.credentialsManager.identityPathIndex,
         this.rateLimit,
         0 // TODO: need to track messages sent per epoch
       );
@@ -116,9 +107,7 @@ export class RLNEncoder implements IEncoder {
 type RLNEncoderOptions = {
   encoder: IEncoder;
   rlnInstance: RLNInstance;
-  credential: IdentityCredential;
-  pathElements: Uint8Array[];
-  identityPathIndex: Uint8Array[];
+  credentialsManager: RLNCredentialsManager;
   rateLimit: number;
 };
 
@@ -127,8 +116,6 @@ export const createRLNEncoder = (options: RLNEncoderOptions): RLNEncoder => {
     options.encoder,
     options.rlnInstance,
     options.rateLimit,
-    options.pathElements,
-    options.identityPathIndex,
-    options.credential
+    options.credentialsManager
   );
 };
