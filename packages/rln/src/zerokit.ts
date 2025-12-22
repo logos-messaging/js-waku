@@ -45,7 +45,7 @@ export class Zerokit {
     msg: Uint8Array,
     epoch: Uint8Array,
     rateLimit: number,
-    messageId: number // number of message sent by the user in this epoch
+    messageNumberId: number
   ): Promise<Uint8Array> {
     const externalNullifier = poseidonHash(
       sha256(epoch),
@@ -74,7 +74,7 @@ export class Zerokit {
     return BytesUtils.concatenate(
       idSecretHash,
       BytesUtils.writeUintLE(new Uint8Array(32), rateLimit, 0, 32),
-      BytesUtils.writeUintLE(new Uint8Array(32), messageId, 0, 32),
+      BytesUtils.writeUintLE(new Uint8Array(32), messageNumberId, 0, 32),
       pathElementsBytes,
       identityPathIndexBytes,
       x,
@@ -89,7 +89,7 @@ export class Zerokit {
     pathElements: Uint8Array[],
     identityPathIndex: Uint8Array[],
     rateLimit: number,
-    messageId: number // number of message sent by the user in this epoch
+    messageNumberId: number
   ): Promise<Uint8Array> {
     if (epoch === undefined) {
       epoch = epochIntToBytes(dateToEpoch(new Date()));
@@ -116,9 +116,9 @@ export class Zerokit {
       );
     }
 
-    if (messageId < 0 || messageId >= rateLimit) {
+    if (messageNumberId < 0 || messageNumberId >= rateLimit) {
       throw new Error(
-        `messageId must be an integer between 0 and ${rateLimit - 1}, got ${messageId}`
+        `messageNumberId must be an integer between 0 and ${rateLimit - 1}, got ${messageNumberId}`
       );
     }
 
@@ -129,7 +129,7 @@ export class Zerokit {
       msg,
       epoch,
       rateLimit,
-      messageId
+      messageNumberId
     );
     const witnessJson: Record<string, unknown> = zerokitRLN.rlnWitnessToJson(
       this.zkRLN,
