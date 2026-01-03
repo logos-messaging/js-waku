@@ -1,25 +1,18 @@
-import * as zerokitRLN from "@waku/zerokit-rln-wasm";
+import { hash, poseidonHash as poseidon } from "@waku/zerokit-rln-wasm-utils";
 
 import { BytesUtils } from "./bytes.js";
 
 export function poseidonHash(...input: Array<Uint8Array>): Uint8Array {
-  const inputLen = BytesUtils.writeUIntLE(
+  const inputLen = BytesUtils.writeUintLE(
     new Uint8Array(8),
     input.length,
     0,
     8
   );
   const lenPrefixedData = BytesUtils.concatenate(inputLen, ...input);
-  return zerokitRLN.poseidonHash(lenPrefixedData);
+  return poseidon(lenPrefixedData, true);
 }
 
 export function sha256(input: Uint8Array): Uint8Array {
-  const inputLen = BytesUtils.writeUIntLE(
-    new Uint8Array(8),
-    input.length,
-    0,
-    8
-  );
-  const lenPrefixedData = BytesUtils.concatenate(inputLen, input);
-  return zerokitRLN.hash(lenPrefixedData);
+  return hash(input, true);
 }
