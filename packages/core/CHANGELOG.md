@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The file is maintained by [Release Please](https://github.com/googleapis/release-please) based on [Conventional Commits](https://www.conventionalcommits.org) specification,
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.41](https://github.com/logos-messaging/logos-messaging-js/compare/core-v0.0.40...core-v0.0.41) (2026-01-16)
+
+
+### Features
+
+* Add dialTimeout, change dialingQueue to Map ([#2773](https://github.com/logos-messaging/logos-messaging-js/issues/2773)) ([7816642](https://github.com/logos-messaging/logos-messaging-js/commit/7816642fae3eba4f87c196b9571246456a1525e7))
+* Reliable Channel: Status Sync, overflow protection, stop TODOs ([#2729](https://github.com/logos-messaging/logos-messaging-js/issues/2729)) ([e5f51d7](https://github.com/logos-messaging/logos-messaging-js/commit/e5f51d7df101020a1a6d0787ce68fab4f28922f5))
+
+
+### Bug Fixes
+
+* Cleanup routines on reliable channel and core protocols ([#2733](https://github.com/logos-messaging/logos-messaging-js/issues/2733)) ([84a6ea6](https://github.com/logos-messaging/logos-messaging-js/commit/84a6ea69cf8630dacea0cafd58dd8c605ee8dc48))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @waku/enr bumped from ^0.0.33 to ^0.0.34
+    * @waku/interfaces bumped from 0.0.34 to 0.0.35
+    * @waku/utils bumped from 0.0.27 to 0.0.28
+
 ## [0.0.40](https://github.com/waku-org/js-waku/compare/core-v0.0.39...core-v0.0.40) (2025-10-31)
 
 

@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.1.11](https://github.com/logos-messaging/logos-messaging-js/compare/rln-v0.1.10...rln-v0.1.11) (2026-01-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* **rln:** generate contract types, migrate from ethers to viem ([#2705](https://github.com/logos-messaging/logos-messaging-js/issues/2705))
+
+### Features
+
+* **rln:** Generate contract types, migrate from ethers to viem ([#2705](https://github.com/logos-messaging/logos-messaging-js/issues/2705)) ([f2ad23a](https://github.com/logos-messaging/logos-messaging-js/commit/f2ad23ad4354fb3440ca369ed91ba4d882bbacf6))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @waku/core bumped from ^0.0.40 to ^0.0.41
+    * @waku/utils bumped from ^0.0.27 to ^0.0.28
+  * devDependencies
+    * @waku/interfaces bumped from 0.0.34 to 0.0.35
+    * @waku/message-encryption bumped from ^0.0.37 to ^0.0.39
+
 ## [0.1.10](https://github.com/waku-org/js-waku/compare/rln-v0.1.9...rln-v0.1.10) (2025-10-31)
 
 

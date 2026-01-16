@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The file is maintained by [Release Please](https://github.com/googleapis/release-please) based on [Conventional Commits](https://www.conventionalcommits.org) specification,
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.35](https://github.com/logos-messaging/logos-messaging-js/compare/interfaces-v0.0.34...interfaces-v0.0.35) (2026-01-16)
+
+
+### Features
+
+* Add dialTimeout, change dialingQueue to Map ([#2773](https://github.com/logos-messaging/logos-messaging-js/issues/2773)) ([7816642](https://github.com/logos-messaging/logos-messaging-js/commit/7816642fae3eba4f87c196b9571246456a1525e7))
+
+
+### Bug Fixes
+
+* Cleanup routines on reliable channel and core protocols ([#2733](https://github.com/logos-messaging/logos-messaging-js/issues/2733)) ([84a6ea6](https://github.com/logos-messaging/logos-messaging-js/commit/84a6ea69cf8630dacea0cafd58dd8c605ee8dc48))
+
 ## [0.0.34](https://github.com/waku-org/js-waku/compare/interfaces-v0.0.33...interfaces-v0.0.34) (2025-09-20)
 
 
