@@ -12,6 +12,20 @@
   * devDependencies
     * @waku/interfaces bumped from 0.0.16 to 0.0.17
 
+## [0.0.28](https://github.com/logos-messaging/logos-messaging-js/compare/utils-v0.0.27...utils-v0.0.28) (2026-01-16)
+
+
+### Features
+
+* Reliable Channel: Status Sync, overflow protection, stop TODOs ([#2729](https://github.com/logos-messaging/logos-messaging-js/issues/2729)) ([e5f51d7](https://github.com/logos-messaging/logos-messaging-js/commit/e5f51d7df101020a1a6d0787ce68fab4f28922f5))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @waku/interfaces bumped from 0.0.34 to 0.0.35
+
 ## [0.0.27](https://github.com/waku-org/js-waku/compare/utils-v0.0.26...utils-v0.0.27) (2025-09-20)
 
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.9](https://github.com/logos-messaging/logos-messaging-js/compare/sds-v0.0.8...sds-v0.0.9) (2026-01-16)
+
+
+### Features
+
+* Incorporate sds-r into reliable channels ([#2701](https://github.com/logos-messaging/logos-messaging-js/issues/2701)) ([788f7e6](https://github.com/logos-messaging/logos-messaging-js/commit/788f7e62c5141d10d013c91c28d549188d165762))
+* Reliable Channel: Status Sync, overflow protection, stop TODOs ([#2729](https://github.com/logos-messaging/logos-messaging-js/issues/2729)) ([e5f51d7](https://github.com/logos-messaging/logos-messaging-js/commit/e5f51d7df101020a1a6d0787ce68fab4f28922f5))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @waku/utils bumped from ^0.0.27 to ^0.0.28
+
 ## [0.0.8](https://github.com/waku-org/js-waku/compare/sds-v0.0.7...sds-v0.0.8) (2025-10-31)
 
 
