@@ -1,3 +1,4 @@
+import { bytesToBigInt, numberToBytes } from "viem";
 export class BytesUtils {
   /**
    * Concatenate Uint8Arrays
@@ -32,18 +33,40 @@ export class BytesUtils {
       return 0n;
     }
 
-    // Create a copy to avoid modifying the original array
     const workingBytes = new Uint8Array(bytes);
 
-    // Reverse bytes if input is little-endian to work with big-endian internally
     if (inputEndianness === "little") {
       workingBytes.reverse();
     }
 
-    // Convert to BigInt
-    let result = 0n;
-    for (let i = 0; i < workingBytes.length; i++) {
-      result = (result << 8n) | BigInt(workingBytes[i]);
+    return bytesToBigInt(workingBytes, { size: 32 });
+  }
+
+  /**
+   * Convert a BigInt to a bytes32 (32-byte Uint8Array)
+   * @param value - The BigInt to convert (must fit in 32 bytes)
+   * @param outputEndianness - Endianness of the output bytes ('big' or 'little')
+   * @returns 32-byte Uint8Array representation of the BigInt
+   */
+  public static bytes32FromBigInt(
+    value: bigint,
+    outputEndianness: "big" | "little" = "little"
+  ): Uint8Array {
+    if (value < 0n) {
+      throw new Error("Cannot convert negative BigInt to bytes");
+    }
+
+    if (value >> 256n !== 0n) {
+      throw new Error(
+        `BigInt value is too large to fit in 32 bytes (max bit length: 256)`
+      );
+    }
+
+    const result = numberToBytes(value, { size: 32 });
+
+    // If we need little-endian output, reverse the array
+    if (outputEndianness === "little") {
+      result.reverse();
     }
 
     return result;
@@ -52,7 +75,7 @@ export class BytesUtils {
   /**
    * Writes an unsigned integer to a buffer in little-endian format
    */
-  public static writeUIntLE(
+  public static writeUintLE(
     buf: Uint8Array,
     value: number,
     offset: number,

@@ -171,7 +171,8 @@
     "proto",
     "*.spec.ts",
     "*.log",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "test_keystore.ts"
   ],
   "patterns": [
     {
