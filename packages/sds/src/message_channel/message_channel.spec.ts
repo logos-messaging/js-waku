@@ -4,6 +4,7 @@ import { expect } from "chai";
 import { DefaultBloomFilter } from "../bloom_filter/bloom.js";
 
 import { MessageChannelEvent } from "./events.js";
+import { LocalHistory } from "./local_history.js";
 import {
   ContentMessage,
   HistoryEntry,
@@ -13,13 +14,25 @@ import {
 } from "./message.js";
 import {
   DEFAULT_BLOOM_FILTER_OPTIONS,
-  ILocalHistory,
-  MessageChannel
+  MessageChannel,
+  MessageChannelOptions
 } from "./message_channel.js";
 
 const channelId = "test-channel";
 const callback = (_message: Message): Promise<{ success: boolean }> => {
   return Promise.resolve({ success: true });
+};
+
+/**
+ * Test helper to create a MessageChannel with LocalHistory.
+ * This avoids localStorage pollution in tests and tests core functionality.
+ */
+const createTestChannel = (
+  channelId: string,
+  senderId: string,
+  options: MessageChannelOptions = {}
+): MessageChannel => {
+  return new MessageChannel(channelId, senderId, options, new LocalHistory());
 };
 
 const getBloomFilter = (channel: MessageChannel): DefaultBloomFilter => {
@@ -68,7 +81,7 @@ describe("MessageChannel", function () {
 
   describe("sending a message ", () => {
     beforeEach(() => {
-      channelA = new MessageChannel(channelId, "alice");
+      channelA = createTestChannel(channelId, "alice");
     });
 
     it("should increase lamport timestamp", async () => {
@@ -98,11 +111,11 @@ describe("MessageChannel", function () {
       const expectedTimestamp = channelA["lamportTimestamp"] + 1n;
       const messageId = MessageChannel.getMessageId(payload);
       await sendMessage(channelA, payload, callback);
-      const messageIdLog = channelA["localHistory"] as ILocalHistory;
+      const messageIdLog = channelA["localHistory"] as LocalHistory;
       expect(messageIdLog.length).to.equal(1);
       expect(
         messageIdLog.some(
-          (log) =>
+          (log: ContentMessage) =>
             log.lamportTimestamp === expectedTimestamp &&
             log.messageId === messageId
         )
@@ -119,7 +132,7 @@ describe("MessageChannel", function () {
         return { success: true, retrievalHint: testRetrievalHint };
       });
 
-      const localHistory = channelA["localHistory"] as ILocalHistory;
+      const localHistory = channelA["localHistory"] as LocalHistory;
       expect(localHistory.length).to.equal(1);
 
       // Find the message in local history
@@ -171,8 +184,8 @@ describe("MessageChannel", function () {
 
   describe("receiving a message", () => {
     beforeEach(() => {
-      channelA = new MessageChannel(channelId, "alice");
-      channelB = new MessageChannel(channelId, "bob");
+      channelA = createTestChannel(channelId, "alice");
+      channelB = createTestChannel(channelId, "bob");
     });
 
     it("should increase lamport timestamp", async () => {
@@ -187,8 +200,8 @@ describe("MessageChannel", function () {
 
     // TODO: test is failing in CI, investigate in https://github.com/logos-messaging/logos-messaging-js/issues/2648
     it.skip("should update lamport timestamp if greater than current timestamp and dependencies are met", async () => {
-      const testChannelA = new MessageChannel(channelId, "alice");
-      const testChannelB = new MessageChannel(channelId, "bob");
+      const testChannelA = createTestChannel(channelId, "alice");
+      const testChannelB = createTestChannel(channelId, "bob");
 
       const timestampBefore = testChannelA["lamportTimestamp"];
 
@@ -305,7 +318,7 @@ describe("MessageChannel", function () {
         testRetrievalHint
       );
 
-      const localHistory = channelA["localHistory"] as ILocalHistory;
+      const localHistory = channelA["localHistory"] as LocalHistory;
       expect(localHistory.length).to.equal(1);
 
       // Find the message in local history
@@ -427,7 +440,7 @@ describe("MessageChannel", function () {
         )
       );
 
-      const localHistory = channelA["localHistory"] as ILocalHistory;
+      const localHistory = channelA["localHistory"] as LocalHistory;
       expect(localHistory.length).to.equal(2);
 
       // When timestamps are equal, should be ordered by messageId lexicographically
@@ -452,10 +465,10 @@ describe("MessageChannel", function () {
 
   describe("reviewing ack status", () => {
     beforeEach(() => {
-      channelA = new MessageChannel(channelId, "alice", {
+      channelA = createTestChannel(channelId, "alice", {
         causalHistorySize: 2
       });
-      channelB = new MessageChannel(channelId, "bob", { causalHistorySize: 2 });
+      channelB = createTestChannel(channelId, "bob", { causalHistorySize: 2 });
     });
 
     it("should mark all messages in causal history as acknowledged", async () => {
@@ -661,10 +674,10 @@ describe("MessageChannel", function () {
 
   describe("Sweeping incoming buffer", () => {
     beforeEach(() => {
-      channelA = new MessageChannel(channelId, "alice", {
+      channelA = createTestChannel(channelId, "alice", {
         causalHistorySize: 2
       });
-      channelB = new MessageChannel(channelId, "bob", { causalHistorySize: 2 });
+      channelB = createTestChannel(channelId, "bob", { causalHistorySize: 2 });
     });
 
     it("should detect messages with missing dependencies", async () => {
@@ -746,7 +759,7 @@ describe("MessageChannel", function () {
 
     it("should mark a message as irretrievably lost if timeout is exceeded", async () => {
       // Create a channel with very very short timeout
-      const channelC: MessageChannel = new MessageChannel(channelId, "carol", {
+      const channelC = createTestChannel(channelId, "carol", {
         timeoutForLostMessagesMs: 10
       });
 
@@ -789,7 +802,7 @@ describe("MessageChannel", function () {
       let lostMessages: HistoryEntry[] = [];
 
       // Create a channel with very short timeout
-      const channelC: MessageChannel = new MessageChannel(channelId, "carol", {
+      const channelC = createTestChannel(channelId, "carol", {
         timeoutForLostMessagesMs: 10
       });
 
@@ -853,7 +866,7 @@ describe("MessageChannel", function () {
     it("should remove messages without delivering if timeout is exceeded", async () => {
       const causalHistorySize = channelA["causalHistorySize"];
       // Create a channel with very very short timeout
-      const channelC: MessageChannel = new MessageChannel(channelId, "carol", {
+      const channelC = createTestChannel(channelId, "carol", {
         timeoutForLostMessagesMs: 10
       });
 
@@ -1043,10 +1056,10 @@ describe("MessageChannel", function () {
 
   describe("Sweeping outgoing buffer", () => {
     beforeEach(() => {
-      channelA = new MessageChannel(channelId, "alice", {
+      channelA = createTestChannel(channelId, "alice", {
         causalHistorySize: 2
       });
-      channelB = new MessageChannel(channelId, "bob", { causalHistorySize: 2 });
+      channelB = createTestChannel(channelId, "bob", { causalHistorySize: 2 });
     });
 
     it("should partition messages based on acknowledgement status", async () => {
@@ -1088,10 +1101,10 @@ describe("MessageChannel", function () {
 
   describe("Sync messages", () => {
     beforeEach(() => {
-      channelA = new MessageChannel(channelId, "alice", {
+      channelA = createTestChannel(channelId, "alice", {
         causalHistorySize: 2
       });
-      channelB = new MessageChannel(channelId, "bob", { causalHistorySize: 2 });
+      channelB = createTestChannel(channelId, "bob", { causalHistorySize: 2 });
       const message = utf8ToBytes("first message in channel");
       channelA["localHistory"].push(
         new ContentMessage(
@@ -1115,7 +1128,7 @@ describe("MessageChannel", function () {
     });
 
     it("should not be sent when there is no history", async () => {
-      const channelC = new MessageChannel(channelId, "carol", {
+      const channelC = createTestChannel(channelId, "carol", {
         causalHistorySize: 2
       });
       const res = await channelC.pushOutgoingSyncMessage(async (_msg) => {
@@ -1160,7 +1173,7 @@ describe("MessageChannel", function () {
     });
 
     it("should update ack status of messages in outgoing buffer", async () => {
-      const channelC = new MessageChannel(channelId, "carol", {
+      const channelC = createTestChannel(channelId, "carol", {
         causalHistorySize: 2
       });
       for (const m of messagesA) {
@@ -1185,7 +1198,7 @@ describe("MessageChannel", function () {
 
   describe("Ephemeral messages", () => {
     beforeEach(() => {
-      channelA = new MessageChannel(channelId, "alice");
+      channelA = createTestChannel(channelId, "alice");
     });
 
     it("should be sent without a timestamp, causal history, or bloom filter", async () => {
@@ -1208,7 +1221,7 @@ describe("MessageChannel", function () {
     });
 
     it("should be delivered immediately if received", async () => {
-      const channelB = new MessageChannel(channelId, "bob");
+      const channelB = createTestChannel(channelId, "bob");
 
       // Track initial state
       const localHistoryBefore = channelB["localHistory"].length;
@@ -1234,6 +1247,69 @@ describe("MessageChannel", function () {
       expect(channelB["incomingBuffer"].length).to.equal(incomingBufferBefore);
       // 3. Doesn't update lamport timestamp
       expect(channelB["lamportTimestamp"]).to.equal(timestampBefore);
+    });
+  });
+
+  describe("localStorage persistence", function () {
+    // LocalStorage specific tests (browser)
+    before(function () {
+      if (typeof localStorage === "undefined") {
+        this.skip();
+      }
+    });
+
+    it("should restore messages from localStorage on channel recreation", async () => {
+      const persistentChannelId = "persistent-channel";
+
+      const channel1 = new MessageChannel(persistentChannelId, "alice");
+
+      await sendMessage(channel1, utf8ToBytes("msg-1"), callback);
+      await sendMessage(channel1, utf8ToBytes("msg-2"), callback);
+
+      expect(channel1["localHistory"].length).to.equal(2);
+
+      // Recreate channel with same storage - should load history
+      const channel2 = new MessageChannel(persistentChannelId, "alice");
+
+      expect(channel2["localHistory"].length).to.equal(2);
+      expect(
+        channel2["localHistory"].slice(0).map((m) => m.messageId)
+      ).to.deep.equal([
+        MessageChannel.getMessageId(utf8ToBytes("msg-1")),
+        MessageChannel.getMessageId(utf8ToBytes("msg-2"))
+      ]);
+    });
+
+    it("should include persisted messages in causal history after restart", async () => {
+      const persistentChannelId = "persistent-causal";
+
+      const channel1 = new MessageChannel(persistentChannelId, "alice", {
+        causalHistorySize: 2
+      });
+
+      await sendMessage(channel1, utf8ToBytes("msg-1"), callback);
+      await sendMessage(channel1, utf8ToBytes("msg-2"), callback);
+      await sendMessage(channel1, utf8ToBytes("msg-3"), callback);
+
+      const channel2 = new MessageChannel(persistentChannelId, "alice", {
+        causalHistorySize: 2
+      });
+
+      let capturedMessage: ContentMessage | null = null;
+      await sendMessage(channel2, utf8ToBytes("msg-4"), async (message) => {
+        capturedMessage = message;
+        return { success: true };
+      });
+
+      expect(capturedMessage).to.not.be.null;
+      expect(capturedMessage!.causalHistory).to.have.lengthOf(2);
+      // Should reference the last 2 messages (msg-2 and msg-3)
+      expect(capturedMessage!.causalHistory[0].messageId).to.equal(
+        MessageChannel.getMessageId(utf8ToBytes("msg-2"))
+      );
+      expect(capturedMessage!.causalHistory[1].messageId).to.equal(
+        MessageChannel.getMessageId(utf8ToBytes("msg-3"))
+      );
     });
   });
 });

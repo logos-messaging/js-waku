@@ -7,7 +7,7 @@ import { DefaultBloomFilter } from "../bloom_filter/bloom.js";
 
 import { Command, Handlers, ParamsByAction, Task } from "./command_queue.js";
 import { MessageChannelEvent, MessageChannelEvents } from "./events.js";
-import { MemLocalHistory } from "./mem_local_history.js";
+import { LocalHistory } from "./local_history.js";
 import {
   ChannelId,
   ContentMessage,
@@ -63,11 +63,6 @@ export interface MessageChannelOptions {
   repairConfig?: RepairConfig;
 }
 
-export type ILocalHistory = Pick<
-  Array<ContentMessage>,
-  "some" | "push" | "slice" | "find" | "length" | "findIndex"
->;
-
 export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
   public readonly channelId: ChannelId;
   public readonly senderId: ParticipantId;
@@ -76,7 +71,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
   private outgoingBuffer: ContentMessage[];
   private possibleAcks: Map<MessageId, number>;
   private incomingBuffer: Array<ContentMessage | SyncMessage>;
-  private readonly localHistory: ILocalHistory;
+  private readonly localHistory: LocalHistory;
   private timeReceived: Map<MessageId, number>;
   private readonly causalHistorySize: number;
   private readonly possibleAcksThreshold: number;
@@ -106,7 +101,7 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
     channelId: ChannelId,
     senderId: ParticipantId,
     options: MessageChannelOptions = {},
-    localHistory: ILocalHistory = new MemLocalHistory()
+    localHistory?: LocalHistory
   ) {
     super();
     this.channelId = channelId;
@@ -117,7 +112,8 @@ export class MessageChannel extends TypedEventEmitter<MessageChannelEvents> {
     this.outgoingBuffer = [];
     this.possibleAcks = new Map();
     this.incomingBuffer = [];
-    this.localHistory = localHistory;
+    this.localHistory =
+      localHistory ?? new LocalHistory({ storage: { prefix: channelId } });
     this.causalHistorySize =
       options.causalHistorySize ?? DEFAULT_CAUSAL_HISTORY_SIZE;
     // TODO: this should be determined based on the bloom filter parameters and number of hashes
