@@ -45,6 +45,10 @@ export async function runNodes<T>(
   const { context, networkConfig, createNode, protocols } = options;
 
   const nwaku = new ServiceNode(makeLogFileName(context));
+  // Mesh peer: gives `nwaku` at least one gossipsub mesh peer so that REST
+  // publishes (e.g. used by store tests to seed messages) don't fail with
+  // NoPeersToPublish. Relay-only — no store/filter/lightpush needed.
+  const nwakuPeer = new ServiceNode(makeLogFileName(context) + "-peer");
 
   const nwakuArgs: Args = {
     filter: true,
@@ -94,6 +98,25 @@ export async function runNodes<T>(
 
   await nwaku.start(nwakuArgs, { retries: 3 });
 
+  // Spin up a relay-only peer subscribed to the same shards/topics and chain
+  // it to `nwaku` via --staticnode. Once the mesh forms, REST publishes on
+  // `nwaku` have at least one mesh peer and succeed. Bind its lifecycle to
+  // `nwaku` so existing tearDownNodes(nwaku, ...) calls stop both.
+  const nwakuPeerArgs: Args = {
+    relay: true,
+    clusterId: networkConfig.clusterId,
+    staticnode: await nwaku.getExternalMultiaddr()
+  };
+  if (isAutoSharding(networkConfig)) {
+    nwakuPeerArgs.numShardsInNetwork = networkConfig.numShardsInCluster;
+    nwakuPeerArgs.contentTopic = options.contentTopics ?? [];
+  } else if (isStaticSharding(networkConfig) && options.relayShards) {
+    nwakuPeerArgs.shard = options.relayShards;
+    nwakuPeerArgs.numShardsInNetwork = 0;
+  }
+  await nwakuPeer.start(nwakuPeerArgs, { retries: 3 });
+  nwaku.setCompanion(nwakuPeer);
+
   log.info("Starting js waku node with :", JSON.stringify(jswakuArgs));
   let waku: WakuNode | undefined;
   try {
@@ -110,7 +133,15 @@ export async function runNodes<T>(
     await waku.dial(await nwaku.getMultiaddrWithId());
     await waku.waitForPeers(protocols);
 
-    await nwaku.ensureSubscriptions(routingInfos.map((r) => r.pubsubTopic));
+    const pubsubTopics = routingInfos.map((r) => r.pubsubTopic);
+    await nwaku.ensureSubscriptions(pubsubTopics);
+    // Peer must also be subscribed for the gossipsub mesh on `pubsubTopics`
+    // to form between the two nwaku nodes.
+    await nwakuPeer.ensureSubscriptions(pubsubTopics);
+    // Give gossipsub a heartbeat (~1s) to GRAFT both nodes into the mesh
+    // before any test publishes. Without this, the first publish can still
+    // race the mesh and fail with NoPeersToPublish.
+    await nwaku.waitForMeshPeers(pubsubTopics, { timeoutMs: 5000 });
 
     return [nwaku, waku as T];
   } else {

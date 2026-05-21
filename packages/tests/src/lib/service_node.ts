@@ -60,6 +60,9 @@ export class ServiceNode {
   private readonly logPath: string;
   private restPort?: number;
   private args?: Args;
+  // Optional companion node started by runNodes() to give the primary nwaku
+  // a gossipsub mesh peer. Its lifecycle is bound to this node's stop().
+  private companion?: ServiceNode;
 
   public readonly version: NwakuVersion | undefined;
 
@@ -206,10 +209,56 @@ export class ServiceNode {
   public async stop(): Promise<void> {
     await this.docker?.stop();
     delete this.docker;
+    if (this.companion) {
+      await this.companion.stop();
+      delete this.companion;
+    }
+  }
+
+  /**
+   * Used by runNodes() to attach a relay-only mesh peer to this node, so
+   * that REST `/relay/v1/auto/messages` publishes on this node have at least
+   * one gossipsub mesh peer and don't fail with NoPeersToPublish.
+   */
+  public setCompanion(node: ServiceNode): void {
+    this.companion = node;
   }
 
   public async waitForLog(msg: string, timeout: number): Promise<void> {
     return waitForLine(this.logPath, msg, timeout);
+  }
+
+  /**
+   * Polls /admin/v1/peers/mesh until every shard corresponding to the given
+   * pubsub topics has at least one mesh peer. Used by runNodes() to ensure
+   * the gossipsub mesh is grafted before tests publish.
+   */
+  public async waitForMeshPeers(
+    pubsubTopics: PubsubTopic[],
+    options: { timeoutMs?: number; intervalMs?: number } = {}
+  ): Promise<void> {
+    const timeoutMs = options.timeoutMs ?? 5000;
+    const intervalMs = options.intervalMs ?? 200;
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+      const mesh = await this.restCall<{ shard: number; peers: unknown[] }[]>(
+        "/admin/v1/peers/mesh",
+        "GET",
+        undefined,
+        async (response) => {
+          if (response.status !== 200) return [];
+          const data = await response.json();
+          return Array.isArray(data) ? data : [];
+        }
+      );
+      const haveAnyMesh = mesh.some((ps) => (ps.peers?.length ?? 0) > 0);
+      if (haveAnyMesh) return;
+      await delay(intervalMs);
+    }
+    log.warn(
+      `Timed out after ${timeoutMs}ms waiting for gossipsub mesh peers on ${pubsubTopics.join(", ")}`
+    );
   }
 
   /**
