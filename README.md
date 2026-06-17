@@ -4,7 +4,7 @@
 
 # js-waku
 
-A TypeScript implementation of the [Waku v2 protocol](https://lip.logos.co/messaging/standards/core/10/waku2.html).
+A TypeScript implementation of the [Waku v2 protocol](https://lip.logos.co/messaging/core/draft/10/waku2.html).
 
 ## Documentation
 
